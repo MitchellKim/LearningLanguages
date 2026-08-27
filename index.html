@@ -10,31 +10,44 @@
     .container { width: 100%; max-width: 480px; }
     h1 { text-align: center; margin-bottom: 20px; color: #2c3e50; }
     
-    .card-input { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 20px; }
+    .card-input { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 15px; }
     .input-group { display: flex; gap: 8px; margin-bottom: 10px; }
     input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; }
     button { width: 100%; padding: 10px; background: #3498db; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
-    button:active { background: #2980b9; }
+    
+    /* 파일 관리 버튼 스타일 */
+    .file-actions { display: flex; gap: 8px; margin-bottom: 20px; }
+    .btn-secondary { background: #2ecc71; font-size: 13px; }
+    .btn-file { background: #9b59b6; font-size: 13px; text-align: center; display: inline-block; cursor: pointer; line-height: 20px; }
 
     .word-list { display: flex; flex-direction: column; gap: 10px; }
-    .word-item { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none; }
-    .word-item.done { opacity: 0.5; text-decoration: line-through; }
+    .word-item { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
     .word { font-weight: bold; font-size: 16px; color: #2c3e50; }
     .meaning { font-size: 14px; color: #7f8c8d; display: none; }
     .word-item.show .meaning { display: inline; }
-    .delete-btn { background: #e74c3c; color: white; border: none; padding: 5px 10px; border-radius: 6px; font-size: 12px; }
+    .delete-btn { background: #e74c3c; color: white; border: none; padding: 5px 10px; border-radius: 6px; font-size: 12px; width: auto; }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>📝 나만의 단어장</h1>
     
+    <!-- 단어 입력 영역 -->
     <div class="card-input">
       <div class="input-group">
         <input type="text" id="wordInput" placeholder="단어 (예: Apple)">
         <input type="text" id="meaningInput" placeholder="뜻 (예: 사과)">
       </div>
       <button onclick="addWord()">단어 추가하기</button>
+    </div>
+
+    <!-- 파일 백업 및 불러오기 버튼 -->
+    <div class="file-actions">
+      <button class="btn-secondary" onclick="exportJSON()">💾 파일로 저장(백업)</button>
+      <label class="btn-file" style="flex:1; color:white; border-radius:8px; padding:10px; font-weight:bold;">
+        📂 파일 불러오기
+        <input type="file" id="importFile" accept=".json" onchange="importJSON(event)" style="display:none;">
+      </label>
     </div>
 
     <div class="word-list" id="wordList"></div>
@@ -51,24 +64,55 @@
     function addWord() {
       const wordInput = document.getElementById('wordInput');
       const meaningInput = document.getElementById('meaningInput');
-      
       if (!wordInput.value || !meaningInput.value) return alert('단어와 뜻을 모두 입력해주세요.');
-      
-      words.push({ id: Date.now(), word: wordInput.value, meaning: meaningInput.value, done: false });
-      wordInput.value = '';
-      meaningInput.value = '';
+      words.push({ id: Date.now(), word: wordInput.value, meaning: meaningInput.value });
+      wordInput.value = ''; meaningInput.value = '';
       saveWords();
     }
 
     function toggleShow(id) {
-      const el = document.getElementById(`word-${id}`);
-      el.classList.toggle('show');
+      document.getElementById(`word-${id}`).classList.toggle('show');
     }
 
     function deleteWord(e, id) {
       e.stopPropagation();
       words = words.filter(w => w.id !== id);
       saveWords();
+    }
+
+    /* 1. 단어 목록을 JSON 파일로 내보내기 */
+    function exportJSON() {
+      if (words.length === 0) return alert('저장할 단어가 없습니다.');
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(words, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `단어장_백업_${new Date().toISOString().slice(0,10)}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+    }
+
+    /* 2. 외부 JSON 파일을 읽어 단어장에 추가하기 */
+    function importJSON(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const importedWords = JSON.parse(e.target.result);
+          if (Array.isArray(importedWords)) {
+            words = [...words, ...importedWords];
+            saveWords();
+            alert('단어 목록을 성공적으로 불러왔습니다!');
+          } else {
+            alert('올바른 단어장 파일 형식이 아닙니다.');
+          }
+        } catch (err) {
+          alert('파일을 읽는 중 오류가 발생했습니다.');
+        }
+      };
+      reader.readAsText(file);
     }
 
     function render() {
