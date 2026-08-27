@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>나만의 단어장</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background-color: #f4f6f8; color: #333; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+    .container { width: 100%; max-width: 480px; }
+    h1 { text-align: center; margin-bottom: 20px; color: #2c3e50; }
+    
+    .card-input { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 20px; }
+    .input-group { display: flex; gap: 8px; margin-bottom: 10px; }
+    input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; }
+    button { width: 100%; padding: 10px; background: #3498db; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+    button:active { background: #2980b9; }
+
+    .word-list { display: flex; flex-direction: column; gap: 10px; }
+    .word-item { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none; }
+    .word-item.done { opacity: 0.5; text-decoration: line-through; }
+    .word { font-weight: bold; font-size: 16px; color: #2c3e50; }
+    .meaning { font-size: 14px; color: #7f8c8d; display: none; }
+    .word-item.show .meaning { display: inline; }
+    .delete-btn { background: #e74c3c; color: white; border: none; padding: 5px 10px; border-radius: 6px; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📝 나만의 단어장</h1>
+    
+    <div class="card-input">
+      <div class="input-group">
+        <input type="text" id="wordInput" placeholder="단어 (예: Apple)">
+        <input type="text" id="meaningInput" placeholder="뜻 (예: 사과)">
+      </div>
+      <button onclick="addWord()">단어 추가하기</button>
+    </div>
+
+    <div class="word-list" id="wordList"></div>
+  </div>
+
+  <script>
+    let words = JSON.parse(localStorage.getItem('myWords') || '[]');
+
+    function saveWords() {
+      localStorage.setItem('myWords', JSON.stringify(words));
+      render();
+    }
+
+    function addWord() {
+      const wordInput = document.getElementById('wordInput');
+      const meaningInput = document.getElementById('meaningInput');
+      
+      if (!wordInput.value || !meaningInput.value) return alert('단어와 뜻을 모두 입력해주세요.');
+      
+      words.push({ id: Date.now(), word: wordInput.value, meaning: meaningInput.value, done: false });
+      wordInput.value = '';
+      meaningInput.value = '';
+      saveWords();
+    }
+
+    function toggleShow(id) {
+      const el = document.getElementById(`word-${id}`);
+      el.classList.toggle('show');
+    }
+
+    function deleteWord(e, id) {
+      e.stopPropagation();
+      words = words.filter(w => w.id !== id);
+      saveWords();
+    }
+
+    function render() {
+      const list = document.getElementById('wordList');
+      list.innerHTML = words.map(w => `
+        <div class="word-item" id="word-${w.id}" onclick="toggleShow(${w.id})">
+          <div>
+            <span class="word">${w.word}</span> : 
+            <span class="meaning">${w.meaning}</span>
+          </div>
+          <button class="delete-btn" onclick="deleteWord(event, ${w.id})">삭제</button>
+        </div>
+      `).join('');
+    }
+
+    render();
+  </script>
+</body>
+</html>
