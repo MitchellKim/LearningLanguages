@@ -14,7 +14,7 @@
     body { 
       background-color: #f4f6f8; 
       color: #333; 
-      padding: 20px 15px; 
+      padding: 0 15px 20px; 
       display: flex; 
       flex-direction: column; 
       align-items: center; 
@@ -25,30 +25,84 @@
     }
     h1 { 
       text-align: center; 
-      margin-bottom: 20px; 
+      margin: 0; 
+      padding: 12px 0 8px;
+      font-size: 20px;
       color: #2c3e50; 
+    }
+
+    /* 상단 입력 영역 전체를 화면에 고정(sticky)해서
+       스크롤해도 항상 보이게 함 */
+    .top-bar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background-color: #f4f6f8;
+      padding-top: 0;
+      margin: 0 -15px;
+      padding-left: 15px;
+      padding-right: 15px;
+      transition: box-shadow 0.2s ease;
+    }
+    .top-bar.stuck {
+      box-shadow: 0 4px 10px rgba(0,0,0,0.06);
+    }
+
+    /* 입력 영역 접기/펼치기 토글 버튼 */
+    .toggle-input {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      width: 100%;
+      background: none;
+      border: none;
+      color: #7f8c8d;
+      font-size: 11px;
+      padding: 2px 0 6px;
+      cursor: pointer;
+    }
+    .toggle-input .arrow {
+      display: inline-block;
+      transition: transform 0.2s ease;
+    }
+    .top-bar.collapsed .toggle-input .arrow {
+      transform: rotate(180deg);
+    }
+
+    /* 접었을 때 입력 카드와 파일 버튼을 부드럽게 숨김 */
+    .collapsible {
+      overflow: hidden;
+      max-height: 600px;
+      opacity: 1;
+      transition: max-height 0.25s ease, opacity 0.2s ease, margin 0.25s ease;
+    }
+    .top-bar.collapsed .collapsible {
+      max-height: 0;
+      opacity: 0;
+      margin-bottom: 0 !important;
     }
     
     /* 입력 카드 영역 */
     .card-input { 
       background: white; 
-      padding: 15px; 
-      border-radius: 12px; 
+      padding: 10px; 
+      border-radius: 10px; 
       box-shadow: 0 4px 6px rgba(0,0,0,0.05); 
-      margin-bottom: 15px; 
+      margin-bottom: 8px; 
     }
     .input-group { 
       display: flex; 
       flex-direction: column; /* 위아래 세로 배치 */
-      gap: 10px; 
-      margin-bottom: 12px; 
+      gap: 6px; 
+      margin-bottom: 8px; 
     }
     input, textarea { 
       width: 100%; 
-      padding: 12px; 
+      padding: 9px 10px; 
       border: 1px solid #ddd; 
-      border-radius: 8px; 
-      font-size: 15px; 
+      border-radius: 7px; 
+      font-size: 14px; 
       outline: none;
     }
     input:focus, textarea:focus {
@@ -56,20 +110,20 @@
     }
     /* 뜻 입력란: 예문 입력을 위해 더 넓은 높이 확보 */
     textarea {
-      height: 80px;
+      height: 54px;
       resize: vertical; /* 사용자가 원하면 높이 조절 가능 */
     }
     
     /* 단어 추가 버튼 */
     .btn-add { 
       width: 100%; 
-      padding: 12px; 
+      padding: 9px; 
       background: #3498db; 
       color: white; 
       border: none; 
-      border-radius: 8px; 
+      border-radius: 7px; 
       font-weight: bold; 
-      font-size: 15px;
+      font-size: 14px;
       cursor: pointer; 
     }
     .btn-add:active { 
@@ -79,15 +133,15 @@
     /* 파일 관리 버튼 영역 (1:1 비율 정렬) */
     .file-actions { 
       display: flex; 
-      gap: 8px; 
-      margin-bottom: 20px; 
+      gap: 6px; 
+      margin-bottom: 8px; 
     }
     .btn-secondary { 
       flex: 1; 
       background: #2ecc71; 
-      font-size: 13px; 
-      padding: 12px 5px;
-      border-radius: 8px;
+      font-size: 12px; 
+      padding: 9px 5px;
+      border-radius: 7px;
       border: none;
       color: white;
       font-weight: bold;
@@ -97,9 +151,9 @@
     .btn-file { 
       flex: 1; 
       background: #9b59b6; 
-      font-size: 13px; 
-      padding: 12px 5px;
-      border-radius: 8px;
+      font-size: 12px; 
+      padding: 9px 5px;
+      border-radius: 7px;
       color: white;
       font-weight: bold;
       text-align: center; 
@@ -112,12 +166,13 @@
     .word-list { 
       display: flex; 
       flex-direction: column; 
-      gap: 10px; 
+      gap: 8px; 
+      margin-top: 4px;
     }
     .word-item { 
       background: white; 
-      padding: 15px; 
-      border-radius: 12px; 
+      padding: 12px; 
+      border-radius: 10px; 
       box-shadow: 0 2px 4px rgba(0,0,0,0.05); 
       display: flex; 
       justify-content: space-between; 
@@ -159,24 +214,34 @@
 </head>
 <body>
   <div class="container">
-    <h1>📝 나만의 단어장</h1>
-    
-    <!-- 세로 정렬 및 큰 입력창 카드로 변경 -->
-    <div class="card-input">
-      <div class="input-group">
-        <input type="text" id="wordInput" placeholder="단어 또는 표제어 (예: Non lo so.)">
-        <textarea id="meaningInput" placeholder="뜻 및 예문 (예: 나는 그것을 모른다.)"></textarea>
-      </div>
-      <button class="btn-add" onclick="addWord()">단어 추가하기</button>
-    </div>
+    <div class="top-bar" id="topBar">
+      <h1>📝 나만의 단어장</h1>
 
-    <!-- 파일 백업/불러오기 슬림 버튼 -->
-    <div class="file-actions">
-      <button class="btn-secondary" onclick="exportJSON()">💾 파일 저장</button>
-      <label class="btn-file">
-        📂 파일 불러오기
-        <input type="file" id="importFile" accept=".json" onchange="importJSON(event)" style="display:none;">
-      </label>
+      <div class="collapsible" id="collapsibleArea">
+        <!-- 세로 정렬 및 큰 입력창 카드로 변경 -->
+        <div class="card-input">
+          <div class="input-group">
+            <input type="text" id="wordInput" placeholder="단어 또는 표제어 (예: Non lo so.)">
+            <textarea id="meaningInput" placeholder="뜻 및 예문 (예: 나는 그것을 모른다.)"></textarea>
+          </div>
+          <button class="btn-add" onclick="addWord()">단어 추가하기</button>
+        </div>
+
+        <!-- 파일 백업/불러오기 슬림 버튼 -->
+        <div class="file-actions">
+          <button class="btn-secondary" onclick="exportJSON()">💾 파일 저장</button>
+          <label class="btn-file">
+            📂 파일 불러오기
+            <input type="file" id="importFile" accept=".json" onchange="importJSON(event)" style="display:none;">
+          </label>
+        </div>
+      </div>
+
+      <!-- 입력 영역 접기/펼치기 -->
+      <button class="toggle-input" id="toggleInputBtn" onclick="toggleInputArea()">
+        <span class="arrow">▲</span>
+        <span id="toggleLabel">입력창 접기</span>
+      </button>
     </div>
 
     <!-- 단어 리스트 -->
@@ -185,6 +250,33 @@
 
   <script>
     let words = JSON.parse(localStorage.getItem('myWords') || '[]');
+    let inputCollapsed = localStorage.getItem('inputCollapsed') === 'true';
+
+    function applyCollapsedState() {
+      const topBar = document.getElementById('topBar');
+      const label = document.getElementById('toggleLabel');
+      if (inputCollapsed) {
+        topBar.classList.add('collapsed');
+        label.textContent = '입력창 펼치기';
+      } else {
+        topBar.classList.remove('collapsed');
+        label.textContent = '입력창 접기';
+      }
+    }
+
+    function toggleInputArea() {
+      inputCollapsed = !inputCollapsed;
+      localStorage.setItem('inputCollapsed', inputCollapsed);
+      applyCollapsedState();
+    }
+
+    // 스크롤 시 상단바가 화면에 붙었을 때만 살짝 그림자 표시
+    window.addEventListener('scroll', () => {
+      const topBar = document.getElementById('topBar');
+      topBar.classList.toggle('stuck', window.scrollY > 0);
+    });
+
+    applyCollapsedState();
 
     function saveWords() {
       localStorage.setItem('myWords', JSON.stringify(words));
