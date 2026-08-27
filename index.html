@@ -31,6 +31,30 @@
       color: #2c3e50; 
     }
 
+    /* 제목 자리를 대신하는 단어장 선택 드롭다운 */
+    .notebook-select-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 10px 4px 8px;
+    }
+    .nb-emoji {
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+    #notebookSelect {
+      font-size: 17px;
+      font-weight: bold;
+      color: #2c3e50;
+      border: none;
+      background: transparent;
+      padding: 4px 2px;
+      max-width: 78vw;
+      text-align: center;
+      cursor: pointer;
+    }
+
     /* 상단 입력 영역 전체를 화면에 고정(sticky)해서
        스크롤해도 항상 보이게 함 */
     .top-bar {
@@ -182,12 +206,28 @@
     }
     .word-content {
       flex: 1;
-      padding-right: 10px;
+      padding: 0 10px;
+      min-width: 0;
+    }
+    .word-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
     }
     .word { 
       font-weight: bold; 
       font-size: 16px; 
       color: #2c3e50; 
+    }
+    .study-badge {
+      font-size: 11px;
+      background: #eafaf1;
+      color: #27ae60;
+      padding: 2px 7px;
+      border-radius: 10px;
+      font-weight: bold;
+      white-space: nowrap;
     }
     .meaning { 
       font-size: 14px; 
@@ -199,23 +239,47 @@
     .word-item.show .meaning { 
       display: block; 
     }
+    /* 삭제 버튼: 표제어 맨 앞(왼쪽)으로 이동해서 오른쪽 '외웠어요'와 헷갈리지 않게 함 */
     .delete-btn { 
-      background: #e74c3c; 
-      color: white; 
+      background: transparent; 
+      color: #e74c3c; 
       border: none; 
-      padding: 6px 12px; 
+      padding: 4px 8px; 
       border-radius: 6px; 
-      font-size: 12px; 
+      font-size: 17px; 
+      font-weight: bold;
       width: auto; 
       flex-shrink: 0;
       cursor: pointer;
+    }
+    .delete-btn:active {
+      background: rgba(231, 76, 60, 0.12);
+    }
+    /* 외웠어요 버튼: 원래 삭제 버튼이 있던 오른쪽 자리 */
+    .study-btn {
+      background: #f1c40f;
+      color: #7a5b00;
+      border: none;
+      padding: 8px 10px;
+      border-radius: 7px;
+      font-size: 12px;
+      font-weight: bold;
+      flex-shrink: 0;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .study-btn:active {
+      background: #d4ac0d;
     }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="top-bar" id="topBar">
-      <h1>📝 나만의 단어장</h1>
+      <div class="notebook-select-wrap">
+        <span class="nb-emoji">📝</span>
+        <select id="notebookSelect" onchange="handleNotebookSelect(this.value)"></select>
+      </div>
 
       <div class="collapsible" id="collapsibleArea">
         <!-- 세로 정렬 및 큰 입력창 카드로 변경 -->
@@ -249,7 +313,91 @@
   </div>
 
   <script>
-    let words = JSON.parse(localStorage.getItem('myWords') || '[]');
+    // ---------- 데이터: 여러 단어장을 이름별로 저장 ----------
+    // notebooks = { "단어장이름": [ {id, word, meaning, studyCount}, ... ], ... }
+    let notebooks = {};
+    let activeNotebook = '';
+
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>"']/g, s => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[s]));
+    }
+
+    function loadData() {
+      const saved = localStorage.getItem('notebooks');
+      if (saved) {
+        notebooks = JSON.parse(saved);
+      } else {
+        // 이전 버전(단일 단어장)을 사용하던 사용자는 자동으로 이전
+        const legacyWords = JSON.parse(localStorage.getItem('myWords') || '[]');
+        notebooks = { '기본 단어장': legacyWords };
+      }
+      activeNotebook = localStorage.getItem('activeNotebook');
+      if (!activeNotebook || !notebooks[activeNotebook]) {
+        activeNotebook = Object.keys(notebooks)[0] || '기본 단어장';
+        if (!notebooks[activeNotebook]) notebooks[activeNotebook] = [];
+      }
+    }
+
+    function getWords() {
+      return notebooks[activeNotebook];
+    }
+
+    function saveAll() {
+      localStorage.setItem('notebooks', JSON.stringify(notebooks));
+      localStorage.setItem('activeNotebook', activeNotebook);
+      renderNotebookSelect();
+      render();
+    }
+
+    function renderNotebookSelect() {
+      const select = document.getElementById('notebookSelect');
+      const names = Object.keys(notebooks);
+      select.innerHTML = names.map(name =>
+        `<option value="${escapeHtml(name)}" ${name === activeNotebook ? 'selected' : ''}>${escapeHtml(name)} (${notebooks[name].length})</option>`
+      ).join('') + `
+        <option value="__new__">➕ 새 단어장 만들기</option>
+        <option value="__rename__">✏️ 이름 바꾸기</option>
+        <option value="__delete__">🗑 이 단어장 삭제</option>
+      `;
+    }
+
+    function handleNotebookSelect(value) {
+      if (value === '__new__') {
+        const name = prompt('새 단어장 이름을 입력하세요');
+        if (name && name.trim()) {
+          if (notebooks[name.trim()]) {
+            alert('이미 있는 이름입니다.');
+          } else {
+            notebooks[name.trim()] = [];
+            activeNotebook = name.trim();
+          }
+        }
+      } else if (value === '__rename__') {
+        const newName = prompt('새 이름을 입력하세요', activeNotebook);
+        if (newName && newName.trim() && newName.trim() !== activeNotebook) {
+          if (notebooks[newName.trim()]) {
+            alert('이미 있는 이름입니다.');
+          } else {
+            notebooks[newName.trim()] = notebooks[activeNotebook];
+            delete notebooks[activeNotebook];
+            activeNotebook = newName.trim();
+          }
+        }
+      } else if (value === '__delete__') {
+        if (Object.keys(notebooks).length <= 1) {
+          alert('마지막 남은 단어장은 삭제할 수 없습니다.');
+        } else if (confirm(`'${activeNotebook}' 단어장을 삭제할까요? 이 작업은 되돌릴 수 없습니다.`)) {
+          delete notebooks[activeNotebook];
+          activeNotebook = Object.keys(notebooks)[0];
+        }
+      } else {
+        activeNotebook = value;
+      }
+      saveAll();
+    }
+
     let inputCollapsed = localStorage.getItem('inputCollapsed') === 'true';
 
     function applyCollapsedState() {
@@ -276,22 +424,15 @@
       topBar.classList.toggle('stuck', window.scrollY > 0);
     });
 
-    applyCollapsedState();
-
-    function saveWords() {
-      localStorage.setItem('myWords', JSON.stringify(words));
-      render();
-    }
-
     function addWord() {
       const wordInput = document.getElementById('wordInput');
       const meaningInput = document.getElementById('meaningInput');
       if (!wordInput.value || !meaningInput.value) return alert('단어와 뜻을 모두 입력해주세요.');
-      
-      words.push({ id: Date.now(), word: wordInput.value, meaning: meaningInput.value });
-      wordInput.value = ''; 
+
+      getWords().push({ id: Date.now(), word: wordInput.value, meaning: meaningInput.value, studyCount: 0 });
+      wordInput.value = '';
       meaningInput.value = '';
-      saveWords();
+      saveAll();
     }
 
     function toggleShow(id) {
@@ -300,14 +441,33 @@
 
     function deleteWord(e, id) {
       e.stopPropagation();
-      words = words.filter(w => w.id !== id);
-      saveWords();
+      notebooks[activeNotebook] = getWords().filter(w => w.id !== id);
+      saveAll();
+    }
+
+    function studyWord(e, id) {
+      e.stopPropagation();
+      const item = getWords().find(w => w.id === id);
+      if (item) {
+        item.studyCount = (item.studyCount || 0) + 1;
+      }
+      saveAll();
+    }
+
+    function normalizeWords(arr) {
+      return arr.map(w => ({
+        id: w.id || (Date.now() + Math.floor(Math.random() * 1000)),
+        word: w.word || '',
+        meaning: w.meaning || '',
+        studyCount: w.studyCount || 0
+      }));
     }
 
     async function exportJSON() {
+      const words = getWords();
       if (words.length === 0) return alert('저장할 단어가 없습니다.');
 
-      const fileName = `단어장_백업_${new Date().toISOString().slice(0,10)}.json`;
+      const fileName = `${activeNotebook}_${new Date().toISOString().slice(0,10)}.json`;
       const jsonStr = JSON.stringify(words, null, 2);
       const blob = new Blob([jsonStr], { type: 'application/json' });
 
@@ -358,33 +518,61 @@
       reader.onload = function(e) {
         try {
           const importedWords = JSON.parse(e.target.result);
-          if (Array.isArray(importedWords)) {
-            words = [...words, ...importedWords];
-            saveWords();
-            alert('단어 목록을 성공적으로 불러왔습니다!');
-          } else {
+          if (!Array.isArray(importedWords)) {
             alert('올바른 단어장 파일 형식이 아닙니다.');
+            return;
           }
+
+          // 파일명에서 확장자와 날짜 접미사를 제거해 단어장 이름으로 사용
+          let baseName = file.name.replace(/\.json$/i, '').replace(/_\d{4}-\d{2}-\d{2}$/, '');
+          let notebookName = baseName || '불러온 단어장';
+
+          if (notebooks[notebookName]) {
+            const merge = confirm(`'${notebookName}' 단어장이 이미 있습니다.\n\n확인: 기존 단어장에 이어붙이기\n취소: 새 이름으로 따로 만들기`);
+            if (merge) {
+              notebooks[notebookName] = [...notebooks[notebookName], ...normalizeWords(importedWords)];
+            } else {
+              let i = 2;
+              while (notebooks[`${notebookName} (${i})`]) i++;
+              notebookName = `${notebookName} (${i})`;
+              notebooks[notebookName] = normalizeWords(importedWords);
+            }
+          } else {
+            notebooks[notebookName] = normalizeWords(importedWords);
+          }
+
+          activeNotebook = notebookName;
+          saveAll();
+          alert(`'${notebookName}' 단어장을 불러왔습니다!`);
         } catch (err) {
           alert('파일을 읽는 중 오류가 발생했습니다.');
         }
+        event.target.value = '';
       };
       reader.readAsText(file);
     }
 
     function render() {
       const list = document.getElementById('wordList');
+      const words = getWords();
       list.innerHTML = words.map(w => `
         <div class="word-item" id="word-${w.id}" onclick="toggleShow(${w.id})">
+          <button class="delete-btn" onclick="deleteWord(event, ${w.id})">✕</button>
           <div class="word-content">
-            <div class="word">${w.word}</div>
-            <div class="meaning">${w.meaning}</div>
+            <div class="word-row">
+              <span class="word">${escapeHtml(w.word)}</span>
+              ${w.studyCount ? `<span class="study-badge">✅ ${w.studyCount}</span>` : ''}
+            </div>
+            <div class="meaning">${escapeHtml(w.meaning)}</div>
           </div>
-          <button class="delete-btn" onclick="deleteWord(event, ${w.id})">삭제</button>
+          <button class="study-btn" onclick="studyWord(event, ${w.id})">외웠어요${w.studyCount ? ` (${w.studyCount})` : ''}</button>
         </div>
       `).join('');
     }
 
+    loadData();
+    renderNotebookSelect();
+    applyCollapsedState();
     render();
   </script>
 </body>
