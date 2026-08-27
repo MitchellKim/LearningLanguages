@@ -17,8 +17,25 @@
     
     /* 파일 관리 버튼 스타일 */
     .file-actions { display: flex; gap: 8px; margin-bottom: 20px; }
-    .btn-secondary { background: #2ecc71; font-size: 13px; }
-    .btn-file { background: #9b59b6; font-size: 13px; text-align: center; display: inline-block; cursor: pointer; line-height: 20px; }
+    .btn-secondary { flex: 1; 
+  background: #2ecc71; 
+  font-size: 13px; 
+  padding: 10px;
+  border-radius: 8px;
+  border: none;
+  color: white;
+  font-weight: bold;
+  cursor: pointer; }
+    .btn-file { flex: 1; 
+  background: #9b59b6; 
+  font-size: 13px; 
+  padding: 10px;
+  border-radius: 8px;
+  color: white;
+  font-weight: bold;
+  text-align: center; 
+  cursor: pointer; 
+  box-sizing: border-box; }
 
     .word-list { display: flex; flex-direction: column; gap: 10px; }
     .word-item { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
@@ -43,12 +60,12 @@
 
     <!-- 파일 백업 및 불러오기 버튼 -->
     <div class="file-actions">
-      <button class="btn-secondary" onclick="exportJSON()">💾 파일로 저장(백업)</button>
-      <label class="btn-file" style="flex:1; color:white; border-radius:8px; padding:10px; font-weight:bold;">
-        📂 파일 불러오기
-        <input type="file" id="importFile" accept=".json" onchange="importJSON(event)" style="display:none;">
-      </label>
-    </div>
+  <button class="btn-secondary" onclick="exportJSON()">💾 파일 저장</button>
+  <label class="btn-file">
+    📂 파일 불러오기
+    <input type="file" id="importFile" accept=".json" onchange="importJSON(event)" style="display:none;">
+  </label>
+</div>
 
     <div class="word-list" id="wordList"></div>
   </div>
