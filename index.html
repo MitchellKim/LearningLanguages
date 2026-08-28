@@ -403,6 +403,8 @@
       white-space: nowrap;
     }
   </style>
+  <!-- 엑셀(xlsx/xls) 파일을 읽기 위한 라이브러리 (SheetJS 공식 CDN) -->
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 </head>
 <body>
   <div class="container">
@@ -440,7 +442,7 @@
           <button class="btn-secondary" onclick="exportJSON()">💾 파일 저장</button>
           <label class="btn-file">
             📂 파일 불러오기
-            <input type="file" id="importFile" accept=".json" onchange="importJSON(event)" style="display:none;">
+            <input type="file" id="importFile" accept=".json,.txt,.csv,.xlsx,.xls" onchange="importFile(event)" style="display:none;">
           </label>
         </div>
       </div>
@@ -595,12 +597,27 @@
       topBar.classList.toggle('stuck', window.scrollY > 0);
     });
 
+    // ---------- 고유 ID 생성 ----------
+    // 모든 단어장을 통틀어 현재까지 사용된 가장 큰 id를 찾은 뒤,
+    // 그보다 큰 값을 순서대로 발급해서 절대 겹치지 않도록 함
+    // (Date.now()만 쓰면 아주 빠르게 연속으로 추가할 때 겹칠 수 있음)
+    function nextIds(count) {
+      let maxId = Date.now();
+      Object.values(notebooks).forEach(list => {
+        list.forEach(w => { if (w.id > maxId) maxId = w.id; });
+      });
+      const ids = [];
+      for (let i = 1; i <= count; i++) ids.push(maxId + i);
+      return ids;
+    }
+
     function addWord() {
       const wordInput = document.getElementById('wordInput');
       const meaningInput = document.getElementById('meaningInput');
       if (!wordInput.value || !meaningInput.value) return alert('단어와 뜻을 모두 입력해주세요.');
 
-      getWords().push({ id: Date.now(), word: wordInput.value, meaning: meaningInput.value, studyCount: 0 });
+      const [newId] = nextIds(1);
+      getWords().push({ id: newId, word: wordInput.value, meaning: meaningInput.value, studyCount: 0 });
       wordInput.value = '';
       meaningInput.value = '';
       saveAll();
@@ -643,7 +660,10 @@
       const textarea = document.getElementById('bulkInput');
       const lines = textarea.value.split('\n');
       const words = getWords();
-      const base = Date.now();
+
+      // 파싱에 성공할 수 있는 최대 개수만큼 미리 고유 id를 발급해둠
+      const ids = nextIds(lines.length || 1);
+      let idPointer = 0;
       let added = 0;
       let skipped = 0;
 
@@ -653,7 +673,7 @@
         const parsed = parseBulkLine(line);
         if (!parsed) { skipped++; return; }
         words.push({
-          id: base + added,
+          id: ids[idPointer++],
           word: parsed.word,
           meaning: parsed.meaning,
           studyCount: 0
@@ -757,8 +777,12 @@
     }
 
     function normalizeWords(arr) {
+      // 원본에 id가 있으면 그대로 쓰고, 없는 것들만 모아서 한번에 안전하게 새 id 발급
+      const missingCount = arr.filter(w => !w.id).length;
+      const freshIds = missingCount > 0 ? nextIds(missingCount) : [];
+      let freshPointer = 0;
       return arr.map(w => ({
-        id: w.id || (Date.now() + Math.floor(Math.random() * 1000)),
+        id: w.id || freshIds[freshPointer++],
         word: w.word || '',
         meaning: w.meaning || '',
         studyCount: w.studyCount || 0
@@ -812,46 +836,178 @@
       alert('저장이 자동으로 시작되지 않으면, 새로 열린 화면에서 공유 버튼(⬆️)을 눌러 "파일에 저장"을 선택해주세요.');
     }
 
-    function importJSON(event) {
+    // ---------- 파일 불러오기 (json / txt / csv / xlsx / xls 공통 처리) ----------
+
+    // 문자열 하나를 확실한 단어장으로 등록
+    function finishImport(fileName, importedWordsRaw) {
+      if (!importedWordsRaw || importedWordsRaw.length === 0) {
+        alert('가져올 수 있는 단어를 찾지 못했습니다.\n파일 형식을 확인해주세요.');
+        return;
+      }
+
+      // 파일명에서 확장자와 날짜 접미사를 제거해 단어장 이름으로 사용
+      let baseName = fileName.replace(/\.[^.]+$/, '').replace(/_\d{4}-\d{2}-\d{2}$/, '');
+      let notebookName = baseName || '불러온 단어장';
+      const normalized = normalizeWords(importedWordsRaw);
+
+      if (notebooks[notebookName]) {
+        const merge = confirm(`'${notebookName}' 단어장이 이미 있습니다.\n\n확인: 기존 단어장에 이어붙이기\n취소: 새 이름으로 따로 만들기`);
+        if (merge) {
+          notebooks[notebookName] = [...notebooks[notebookName], ...normalized];
+        } else {
+          let i = 2;
+          while (notebooks[`${notebookName} (${i})`]) i++;
+          notebookName = `${notebookName} (${i})`;
+          notebooks[notebookName] = normalized;
+        }
+      } else {
+        notebooks[notebookName] = normalized;
+      }
+
+      activeNotebook = notebookName;
+      saveAll();
+      alert(`'${notebookName}' 단어장을 불러왔습니다! (${normalized.length}개)`);
+    }
+
+    // 첫 행이 "단어/뜻", "word/meaning" 같은 헤더인지 판별
+    function isHeaderRow(word, meaning) {
+      const w = String(word).trim().toLowerCase();
+      const m = String(meaning).trim().toLowerCase();
+      const headerWords = ['단어', 'word', '표제어'];
+      const headerMeanings = ['뜻', 'meaning', '의미'];
+      return headerWords.includes(w) && headerMeanings.includes(m);
+    }
+
+    // 2차원 배열(행x열) -> {word, meaning} 배열. xlsx/csv에서 공통으로 사용
+    function rowsToWords(rows) {
+      const result = [];
+      rows.forEach((row, idx) => {
+        if (!row || row.length === 0) return;
+        const word = (row[0] !== undefined && row[0] !== null) ? String(row[0]).trim() : '';
+        const meaning = (row[1] !== undefined && row[1] !== null) ? String(row[1]).trim() : '';
+        if (!word || !meaning) return;
+        if (idx === 0 && isHeaderRow(word, meaning)) return; // 헤더 행 건너뛰기
+        result.push({ word, meaning });
+      });
+      return result;
+    }
+
+    // 한 줄을 [단어, 뜻]으로 분리 (txt 불러오기용) — parseBulkLine 함수를 그대로 재사용
+
+    function parseTxtText(text) {
+      const result = [];
+      text.split('\n').forEach((rawLine, idx) => {
+        const line = rawLine.trim();
+        if (!line) return;
+        const parsed = parseBulkLine(line);
+        if (!parsed) return;
+        if (idx === 0 && isHeaderRow(parsed.word, parsed.meaning)) return;
+        result.push(parsed);
+      });
+      return result;
+    }
+
+    // 쉼표(,)로 구분된 CSV 텍스트를 2차원 배열로 변환 (따옴표로 감싼 필드의 쉼표/줄바꿈도 처리)
+    function parseCSV(text) {
+      const rows = [];
+      let row = [];
+      let field = '';
+      let inQuotes = false;
+      for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+        const next = text[i + 1];
+        if (inQuotes) {
+          if (char === '"' && next === '"') { field += '"'; i++; }
+          else if (char === '"') { inQuotes = false; }
+          else { field += char; }
+        } else {
+          if (char === '"') { inQuotes = true; }
+          else if (char === ',') { row.push(field); field = ''; }
+          else if (char === '\r') { /* \n과 함께 처리되므로 무시 */ }
+          else if (char === '\n') { row.push(field); rows.push(row); row = []; field = ''; }
+          else { field += char; }
+        }
+      }
+      if (field.length > 0 || row.length > 0) {
+        row.push(field);
+        rows.push(row);
+      }
+      return rows;
+    }
+
+    function importFile(event) {
       const file = event.target.files[0];
       if (!file) return;
+      const ext = file.name.split('.').pop().toLowerCase();
 
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        try {
-          const importedWords = JSON.parse(e.target.result);
-          if (!Array.isArray(importedWords)) {
-            alert('올바른 단어장 파일 형식이 아닙니다.');
-            return;
-          }
-
-          // 파일명에서 확장자와 날짜 접미사를 제거해 단어장 이름으로 사용
-          let baseName = file.name.replace(/\.json$/i, '').replace(/_\d{4}-\d{2}-\d{2}$/, '');
-          let notebookName = baseName || '불러온 단어장';
-
-          if (notebooks[notebookName]) {
-            const merge = confirm(`'${notebookName}' 단어장이 이미 있습니다.\n\n확인: 기존 단어장에 이어붙이기\n취소: 새 이름으로 따로 만들기`);
-            if (merge) {
-              notebooks[notebookName] = [...notebooks[notebookName], ...normalizeWords(importedWords)];
+      if (ext === 'json') {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          try {
+            const importedWords = JSON.parse(e.target.result);
+            if (!Array.isArray(importedWords)) {
+              alert('올바른 단어장 파일 형식이 아닙니다.');
             } else {
-              let i = 2;
-              while (notebooks[`${notebookName} (${i})`]) i++;
-              notebookName = `${notebookName} (${i})`;
-              notebooks[notebookName] = normalizeWords(importedWords);
+              finishImport(file.name, importedWords);
             }
-          } else {
-            notebooks[notebookName] = normalizeWords(importedWords);
+          } catch (err) {
+            alert('파일을 읽는 중 오류가 발생했습니다.');
           }
+          event.target.value = '';
+        };
+        reader.readAsText(file);
 
-          activeNotebook = notebookName;
-          saveAll();
-          alert(`'${notebookName}' 단어장을 불러왔습니다!`);
-        } catch (err) {
-          alert('파일을 읽는 중 오류가 발생했습니다.');
+      } else if (ext === 'txt') {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          try {
+            finishImport(file.name, parseTxtText(e.target.result));
+          } catch (err) {
+            alert('파일을 읽는 중 오류가 발생했습니다.');
+          }
+          event.target.value = '';
+        };
+        reader.readAsText(file);
+
+      } else if (ext === 'csv') {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          try {
+            const rows = parseCSV(e.target.result);
+            finishImport(file.name, rowsToWords(rows));
+          } catch (err) {
+            alert('파일을 읽는 중 오류가 발생했습니다.');
+          }
+          event.target.value = '';
+        };
+        reader.readAsText(file);
+
+      } else if (ext === 'xlsx' || ext === 'xls') {
+        if (typeof XLSX === 'undefined') {
+          alert('엑셀 파일을 읽는 기능을 불러오지 못했습니다. 인터넷 연결을 확인하고 다시 시도해주세요.');
+          event.target.value = '';
+          return;
         }
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          try {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const firstSheetName = workbook.SheetNames[0];
+            const sheet = workbook.Sheets[firstSheetName];
+            const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+            finishImport(file.name, rowsToWords(rows));
+          } catch (err) {
+            alert('엑셀 파일을 읽는 중 오류가 발생했습니다.');
+          }
+          event.target.value = '';
+        };
+        reader.readAsArrayBuffer(file);
+
+      } else {
+        alert('지원하지 않는 파일 형식입니다.\n(json, txt, csv, xlsx, xls 파일만 가져올 수 있습니다)');
         event.target.value = '';
-      };
-      reader.readAsText(file);
+      }
     }
 
     function render() {
