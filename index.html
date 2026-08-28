@@ -271,6 +271,105 @@
     .study-btn:active {
       background: #d4ac0d;
     }
+
+    /* 정렬 / 숨기기 컨트롤 바 */
+    .control-bar {
+      background: white;
+      padding: 10px;
+      border-radius: 10px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+      margin-bottom: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .sort-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .control-label {
+      font-size: 12px;
+      color: #7f8c8d;
+      font-weight: bold;
+      flex-shrink: 0;
+    }
+    #sortField {
+      flex: 1;
+      min-width: 84px;
+      padding: 7px 6px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 13px;
+      background: white;
+      color: #333;
+    }
+    .btn-sortdir {
+      background: #ecf0f1;
+      color: #2c3e50;
+      border: none;
+      padding: 7px 9px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: bold;
+      cursor: pointer;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .btn-sortdir:active {
+      background: #dfe6e9;
+    }
+    .btn-shuffle {
+      background: #34495e;
+      color: white;
+      border: none;
+      padding: 7px 9px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: bold;
+      cursor: pointer;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .btn-shuffle:active {
+      background: #2c3e50;
+    }
+    .hide-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      flex-wrap: wrap;
+      border-top: 1px solid #eee;
+      padding-top: 8px;
+    }
+    .hide-toggle {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: #555;
+      cursor: pointer;
+      flex-wrap: wrap;
+    }
+    .hide-toggle input[type="checkbox"] {
+      width: auto;
+      cursor: pointer;
+    }
+    #hideThreshold {
+      width: 48px;
+      padding: 4px 4px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      font-size: 12px;
+      text-align: center;
+    }
+    .hide-count {
+      font-size: 11px;
+      color: #aaa;
+      white-space: nowrap;
+    }
   </style>
 </head>
 <body>
@@ -308,6 +407,27 @@
       </button>
     </div>
 
+    <!-- 정렬 / 숨기기 컨트롤 -->
+    <div class="control-bar">
+      <div class="sort-row">
+        <span class="control-label">정렬</span>
+        <select id="sortField" onchange="handleSortFieldChange(this.value)">
+          <option value="id">등록순(ID)</option>
+          <option value="alpha">알파벳순</option>
+          <option value="study">외운횟수순</option>
+        </select>
+        <button class="btn-sortdir" id="sortDirBtn" onclick="toggleSortDir()">▲ 오름차순</button>
+        <button class="btn-shuffle" onclick="shuffleWords()">🔀 랜덤 섞기</button>
+      </div>
+      <div class="hide-row">
+        <label class="hide-toggle">
+          <input type="checkbox" id="hideToggle" onchange="handleHideToggle(this.checked)">
+          <span>외운 횟수 <input type="number" id="hideThreshold" min="1" value="5" onchange="handleHideThreshold(this.value)" onclick="event.stopPropagation()"> 회 이상 숨기기</span>
+        </label>
+        <span class="hide-count" id="hideCount"></span>
+      </div>
+    </div>
+
     <!-- 단어 리스트 -->
     <div class="word-list" id="wordList"></div>
   </div>
@@ -317,6 +437,12 @@
     // notebooks = { "단어장이름": [ {id, word, meaning, studyCount}, ... ], ... }
     let notebooks = {};
     let activeNotebook = '';
+
+    // ---------- 정렬 / 숨기기 상태 ----------
+    let sortField = localStorage.getItem('sortField') || 'id';       // id | alpha | study
+    let sortDir = localStorage.getItem('sortDir') || 'asc';          // asc | desc
+    let hideEnabled = localStorage.getItem('hideEnabled') === 'true';
+    let hideThreshold = parseInt(localStorage.getItem('hideThreshold'), 10) || 5;
 
     function escapeHtml(str) {
       return String(str).replace(/[&<>"']/g, s => ({
@@ -454,6 +580,76 @@
       saveAll();
     }
 
+    // ---------- 정렬 기능 ----------
+    function sortComparator(a, b) {
+      if (sortField === 'alpha') {
+        return a.word.localeCompare(b.word, 'ko');
+      }
+      if (sortField === 'study') {
+        return (a.studyCount || 0) - (b.studyCount || 0);
+      }
+      return a.id - b.id; // 등록순
+    }
+
+    function applySort() {
+      const words = getWords();
+      words.sort(sortComparator);
+      if (sortDir === 'desc') words.reverse();
+      saveAll();
+    }
+
+    function handleSortFieldChange(value) {
+      sortField = value;
+      localStorage.setItem('sortField', sortField);
+      applySort();
+    }
+
+    function updateSortDirLabel() {
+      const btn = document.getElementById('sortDirBtn');
+      btn.textContent = sortDir === 'asc' ? '▲ 오름차순' : '▼ 내림차순';
+    }
+
+    function toggleSortDir() {
+      sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+      localStorage.setItem('sortDir', sortDir);
+      updateSortDirLabel();
+      applySort();
+    }
+
+    function shuffleWords() {
+      const words = getWords();
+      if (words.length < 2) return;
+      for (let i = words.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [words[i], words[j]] = [words[j], words[i]];
+      }
+      saveAll();
+    }
+
+    // ---------- 숨기기 기능 ----------
+    function handleHideToggle(checked) {
+      hideEnabled = checked;
+      localStorage.setItem('hideEnabled', hideEnabled);
+      render();
+    }
+
+    function handleHideThreshold(value) {
+      let n = parseInt(value, 10);
+      if (isNaN(n) || n < 1) n = 1;
+      hideThreshold = n;
+      document.getElementById('hideThreshold').value = n;
+      localStorage.setItem('hideThreshold', hideThreshold);
+      render();
+    }
+
+    // 페이지 로드 시 저장된 정렬/숨기기 설정을 컨트롤 UI에 반영
+    function initSortAndHideControls() {
+      document.getElementById('sortField').value = sortField;
+      updateSortDirLabel();
+      document.getElementById('hideToggle').checked = hideEnabled;
+      document.getElementById('hideThreshold').value = hideThreshold;
+    }
+
     function normalizeWords(arr) {
       return arr.map(w => ({
         id: w.id || (Date.now() + Math.floor(Math.random() * 1000)),
@@ -554,7 +750,22 @@
 
     function render() {
       const list = document.getElementById('wordList');
-      const words = getWords();
+      const allWords = getWords();
+      const words = hideEnabled
+        ? allWords.filter(w => (w.studyCount || 0) < hideThreshold)
+        : allWords;
+
+      const hideCountEl = document.getElementById('hideCount');
+      const hiddenCount = allWords.length - words.length;
+      if (hideCountEl) {
+        hideCountEl.textContent = (hideEnabled && hiddenCount > 0) ? `🙈 ${hiddenCount}개 숨김` : '';
+      }
+
+      if (words.length === 0 && allWords.length > 0) {
+        list.innerHTML = `<div style="text-align:center; color:#aaa; font-size:13px; padding:20px 0;">조건에 맞는 단어가 모두 숨겨졌습니다.</div>`;
+        return;
+      }
+
       list.innerHTML = words.map(w => `
         <div class="word-item" id="word-${w.id}" onclick="toggleShow(${w.id})">
           <button class="delete-btn" onclick="deleteWord(event, ${w.id})">✕</button>
@@ -573,6 +784,7 @@
     loadData();
     renderNotebookSelect();
     applyCollapsedState();
+    initSortAndHideControls();
     render();
   </script>
 </body>
