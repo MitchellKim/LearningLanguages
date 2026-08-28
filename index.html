@@ -405,26 +405,26 @@
         <span class="arrow">▲</span>
         <span id="toggleLabel">입력창 접기</span>
       </button>
-    </div>
 
-    <!-- 정렬 / 숨기기 컨트롤 -->
-    <div class="control-bar">
-      <div class="sort-row">
-        <span class="control-label">정렬</span>
-        <select id="sortField" onchange="handleSortFieldChange(this.value)">
-          <option value="id">등록순(ID)</option>
-          <option value="alpha">알파벳순</option>
-          <option value="study">외운횟수순</option>
-        </select>
-        <button class="btn-sortdir" id="sortDirBtn" onclick="toggleSortDir()">▲ 오름차순</button>
-        <button class="btn-shuffle" onclick="shuffleWords()">🔀 랜덤 섞기</button>
-      </div>
-      <div class="hide-row">
-        <label class="hide-toggle">
-          <input type="checkbox" id="hideToggle" onchange="handleHideToggle(this.checked)">
-          <span>외운 횟수 <input type="number" id="hideThreshold" min="1" value="5" onchange="handleHideThreshold(this.value)" onclick="event.stopPropagation()"> 회 이상 숨기기</span>
-        </label>
-        <span class="hide-count" id="hideCount"></span>
+      <!-- 정렬 / 숨기기 컨트롤: top-bar 안에 넣어 스크롤해도 항상 고정되도록 함 -->
+      <div class="control-bar">
+        <div class="sort-row">
+          <span class="control-label">정렬</span>
+          <select id="sortField" onchange="handleSortFieldChange(this.value)">
+            <option value="id">등록순(ID)</option>
+            <option value="alpha">알파벳순</option>
+            <option value="study">외운횟수순</option>
+          </select>
+          <button class="btn-sortdir" id="sortDirBtn" onclick="toggleSortDir()">▲ 오름차순</button>
+          <button class="btn-shuffle" onclick="shuffleWords()">🔀 랜덤 섞기</button>
+        </div>
+        <div class="hide-row">
+          <label class="hide-toggle">
+            <input type="checkbox" id="hideToggle" onchange="handleHideToggle(this.checked)">
+            <span>외운 횟수 <input type="number" id="hideThreshold" min="1" value="5" onchange="handleHideThreshold(this.value)" onclick="event.stopPropagation()"> 회 이상 숨기기</span>
+          </label>
+          <span class="hide-count" id="hideCount"></span>
+        </div>
       </div>
     </div>
 
