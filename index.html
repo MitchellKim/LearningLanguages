@@ -39,6 +39,25 @@
       gap: 6px;
       padding: 10px 4px 8px;
     }
+
+    /* 메인 화면(index.html) 이동 홈 버튼 스타일 */
+    .btn-home {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      text-decoration: none;
+      font-size: 16px;
+      padding: 4px 8px;
+      background-color: #ffffff;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      flex-shrink: 0;
+      transition: background-color 0.15s ease;
+    }
+    .btn-home:active {
+      background-color: #e2e8f0;
+    }
+    
     .nb-emoji {
       font-size: 18px;
       flex-shrink: 0;
@@ -410,6 +429,7 @@
   <div class="container">
     <div class="top-bar" id="topBar">
       <div class="notebook-select-wrap">
+        <a href="./index.html" class="btn-home" title="메인 화면으로 이동">🏠</a>
         <span class="nb-emoji">📝</span>
         <select id="notebookSelect" onchange="handleNotebookSelect(this.value)"></select>
       </div>
