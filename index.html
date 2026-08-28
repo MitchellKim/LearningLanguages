@@ -154,6 +154,38 @@
       background: #2980b9; 
     }
 
+    /* 여러 단어 한번에 붙여넣기 토글 버튼 */
+    .btn-bulk-toggle {
+      width: 100%;
+      background: none;
+      border: none;
+      color: #3498db;
+      font-size: 12px;
+      font-weight: bold;
+      padding: 8px 0 2px;
+      cursor: pointer;
+      text-align: center;
+    }
+    .bulk-area {
+      margin-top: 6px;
+    }
+    #bulkInput {
+      height: 110px;
+      font-size: 13px;
+    }
+    .bulk-hint {
+      font-size: 11px;
+      color: #aaa;
+      margin: 2px 2px 6px;
+      line-height: 1.4;
+    }
+    .btn-bulk-add {
+      background: #16a085;
+    }
+    .btn-bulk-add:active {
+      background: #128f76;
+    }
+
     /* 파일 관리 버튼 영역 (1:1 비율 정렬) */
     .file-actions { 
       display: flex; 
@@ -388,6 +420,19 @@
             <textarea id="meaningInput" placeholder="뜻 및 예문 (예: 나는 그것을 모른다.)"></textarea>
           </div>
           <button class="btn-add" onclick="addWord()">단어 추가하기</button>
+
+          <!-- 여러 단어 한번에 붙여넣기 -->
+          <button class="btn-bulk-toggle" onclick="toggleBulkArea()">
+            <span id="bulkArrow">▼</span> 여러 개 한번에 붙여넣기
+          </button>
+          <div class="bulk-area" id="bulkArea" style="display:none;">
+            <div class="bulk-hint">
+              한 줄에 단어 하나씩 입력하세요. 엑셀/구글시트에서 두 칸(단어, 뜻)을 복사해서 그대로 붙여넣어도 자동으로 인식됩니다.<br>
+              직접 입력할 땐 " / "로 구분하세요. 예) Ich heiße Anna. / 제 이름은 안나입니다.
+            </div>
+            <textarea id="bulkInput" placeholder="여기에 붙여넣으세요"></textarea>
+            <button class="btn-add btn-bulk-add" onclick="addBulkWords()">일괄 추가하기</button>
+          </div>
         </div>
 
         <!-- 파일 백업/불러오기 슬림 버튼 -->
@@ -563,6 +608,67 @@
 
     function toggleShow(id) {
       document.getElementById(`word-${id}`).classList.toggle('show');
+    }
+
+    // ---------- 여러 단어 한번에 붙여넣기 ----------
+    function toggleBulkArea() {
+      const area = document.getElementById('bulkArea');
+      const arrow = document.getElementById('bulkArrow');
+      const willShow = area.style.display === 'none';
+      area.style.display = willShow ? 'block' : 'none';
+      arrow.textContent = willShow ? '▲' : '▼';
+      if (willShow) document.getElementById('bulkInput').focus();
+    }
+
+    // 한 줄을 [단어, 뜻]으로 분리. 탭(엑셀/시트 복사) > " / " > "|" > 공백 2칸 이상 순으로 시도
+    function parseBulkLine(line) {
+      let parts = null;
+      if (line.includes('\t')) {
+        parts = line.split('\t');
+      } else if (line.includes(' / ')) {
+        parts = line.split(' / ');
+      } else if (line.includes('|')) {
+        parts = line.split('|');
+      } else if (/\s{2,}/.test(line)) {
+        parts = line.split(/\s{2,}/);
+      }
+      if (!parts || parts.length < 2) return null;
+      const word = parts[0].trim();
+      const meaning = parts.slice(1).join(' ').trim();
+      if (!word || !meaning) return null;
+      return { word, meaning };
+    }
+
+    function addBulkWords() {
+      const textarea = document.getElementById('bulkInput');
+      const lines = textarea.value.split('\n');
+      const words = getWords();
+      const base = Date.now();
+      let added = 0;
+      let skipped = 0;
+
+      lines.forEach((rawLine) => {
+        const line = rawLine.trim();
+        if (!line) return;
+        const parsed = parseBulkLine(line);
+        if (!parsed) { skipped++; return; }
+        words.push({
+          id: base + added,
+          word: parsed.word,
+          meaning: parsed.meaning,
+          studyCount: 0
+        });
+        added++;
+      });
+
+      if (added === 0) {
+        alert('추가할 수 있는 줄을 찾지 못했습니다.\n단어와 뜻을 탭(Tab) 또는 " / "로 구분해서 입력해주세요.');
+        return;
+      }
+
+      textarea.value = '';
+      saveAll();
+      alert(`${added}개 단어를 추가했습니다.` + (skipped > 0 ? `\n(형식이 맞지 않아 ${skipped}줄은 건너뛰었습니다)` : ''));
     }
 
     function deleteWord(e, id) {
