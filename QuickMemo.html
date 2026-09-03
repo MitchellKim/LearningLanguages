@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>메모</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#EAEFE9;
+    --paper-2:#F3F6F1;
+    --line:#C9D2C8;
+    --line-soft:#DBE2D9;
+    --ink:#20242B;
+    --ink-soft:#5B655F;
+    --ink-faint:#8A928B;
+    --accent:#3457D5;
+    --accent-soft:#DCE3FA;
+    --accent-press:#2A45AC;
+    --danger:#B34A3A;
+    --danger-soft:#F3E1DD;
+    --radius:6px;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'IBM Plex Sans', sans-serif;
+    overflow:hidden;
+  }
+  ::selection{background:var(--accent-soft);}
+  button{font-family:inherit;}
+
+  .app{
+    display:flex;
+    height:100vh;
+    width:100vw;
+  }
+
+  /* ---------- Sidebar ---------- */
+  .sidebar{
+    width:280px;
+    flex-shrink:0;
+    display:flex;
+    flex-direction:column;
+    border-right:1px solid var(--line);
+    background:var(--paper-2);
+    background-image:
+      linear-gradient(var(--line-soft) 1px, transparent 1px);
+    background-size: 100% 34px;
+    background-position: 0 78px;
+  }
+  .brand{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    padding:20px 18px 14px;
+    background:var(--paper-2);
+  }
+  .brand h1{
+    font-family:'Fraunces', serif;
+    font-weight:600;
+    font-size:22px;
+    margin:0;
+    letter-spacing:-0.01em;
+  }
+  .new-btn{
+    border:1px solid var(--accent);
+    background:var(--accent);
+    color:#fff;
+    padding:7px 13px;
+    border-radius:var(--radius);
+    font-size:13px;
+    font-weight:500;
+    cursor:pointer;
+    transition:background 0.12s ease;
+  }
+  .new-btn:hover{background:var(--accent-press); border-color:var(--accent-press);}
+  .new-btn:active{transform:translateY(1px);}
+
+  .search-row{
+    padding:0 18px 12px;
+    background:var(--paper-2);
+  }
+  .search-row input{
+    width:100%;
+    border:1px solid var(--line);
+    background:#fff;
+    padding:8px 10px;
+    border-radius:var(--radius);
+    font-size:13px;
+    color:var(--ink);
+    font-family:inherit;
+  }
+  .search-row input:focus{
+    outline:none;
+    border-color:var(--accent);
+  }
+  .search-row input::placeholder{color:var(--ink-faint);}
+
+  .note-list{
+    flex:1;
+    overflow-y:auto;
+    padding:2px 0 20px;
+  }
+  .note-item{
+    display:flex;
+    gap:10px;
+    align-items:flex-start;
+    padding:9px 18px;
+    cursor:pointer;
+    border-left:2px solid transparent;
+    position:relative;
+  }
+  .note-item:hover{background:rgba(52,87,213,0.05);}
+  .note-item.active{
+    background:rgba(52,87,213,0.09);
+    border-left-color:var(--accent);
+  }
+  .note-thumb{
+    width:36px;
+    height:36px;
+    border-radius:4px;
+    border:1px solid var(--line);
+    background:#fff;
+    flex-shrink:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    overflow:hidden;
+    color:var(--ink-faint);
+    font-size:15px;
+  }
+  .note-thumb canvas{width:100%;height:100%;}
+  .note-meta{
+    flex:1;
+    min-width:0;
+    padding-top:1px;
+  }
+  .note-title{
+    font-size:13.5px;
+    font-weight:500;
+    color:var(--ink);
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    margin-bottom:2px;
+  }
+  .note-preview{
+    font-size:12px;
+    color:var(--ink-soft);
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .note-time{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10.5px;
+    color:var(--ink-faint);
+    margin-top:3px;
+  }
+  .note-del{
+    opacity:0;
+    background:none;
+    border:none;
+    color:var(--ink-faint);
+    cursor:pointer;
+    font-size:14px;
+    padding:2px 4px;
+    align-self:center;
+  }
+  .note-item:hover .note-del{opacity:1;}
+  .note-del:hover{color:var(--danger);}
+
+  .empty-list{
+    padding:30px 18px;
+    color:var(--ink-faint);
+    font-size:13px;
+    line-height:1.6;
+  }
+
+  .sidebar-footer{
+    display:flex;
+    gap:8px;
+    padding:12px 18px 16px;
+    border-top:1px solid var(--line);
+    background:var(--paper-2);
+  }
+  .ghost-btn{
+    flex:1;
+    background:transparent;
+    border:1px solid var(--line);
+    color:var(--ink-soft);
+    padding:7px 8px;
+    border-radius:var(--radius);
+    font-size:12px;
+    cursor:pointer;
+  }
+  .ghost-btn:hover{border-color:var(--ink-faint); color:var(--ink);}
+  #import-input{display:none;}
+
+  /* ---------- Main ---------- */
+  .main{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    min-width:0;
+  }
+  .empty-state{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:14px;
+    color:var(--ink-faint);
+  }
+  .empty-state svg{width:120px;height:120px;opacity:0.7;}
+  .empty-state p{font-size:14px; margin:0;}
+
+  .editor{
+    flex:1;
+    display:none;
+    flex-direction:column;
+    min-height:0;
+  }
+  .editor.visible{display:flex;}
+
+  .toolbar{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    padding:14px 22px;
+    border-bottom:1px solid var(--line);
+    flex-shrink:0;
+  }
+  .title-input{
+    flex:1;
+    border:none;
+    background:transparent;
+    font-family:'Fraunces', serif;
+    font-weight:500;
+    font-size:19px;
+    color:var(--ink);
+    padding:2px 0;
+    min-width:0;
+  }
+  .title-input:focus{outline:none;}
+  .title-input::placeholder{color:var(--ink-faint); font-weight:500;}
+
+  .mode-switch{
+    display:flex;
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    overflow:hidden;
+    flex-shrink:0;
+  }
+  .mode-switch button{
+    border:none;
+    background:#fff;
+    color:var(--ink-soft);
+    padding:6px 13px;
+    font-size:12.5px;
+    cursor:pointer;
+  }
+  .mode-switch button + button{border-left:1px solid var(--line);}
+  .mode-switch button.active{background:var(--accent-soft); color:var(--accent-press); font-weight:500;}
+
+  .save-flag{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    color:var(--ink-faint);
+    opacity:0;
+    transition:opacity 0.4s ease;
+    flex-shrink:0;
+    white-space:nowrap;
+  }
+  .save-flag.show{opacity:1;}
+
+  .icon-btn{
+    border:1px solid var(--line);
+    background:#fff;
+    color:var(--ink-soft);
+    width:32px;
+    height:32px;
+    border-radius:var(--radius);
+    cursor:pointer;
+    font-size:14px;
+    flex-shrink:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .icon-btn:hover{border-color:var(--danger); color:var(--danger);}
+
+  .pane{
+    flex:1;
+    min-height:0;
+    position:relative;
+  }
+  #text-pane{
+    width:100%;
+    height:100%;
+    border:none;
+    resize:none;
+    background:
+      linear-gradient(var(--line-soft) 1px, transparent 1px);
+    background-size:100% 30px;
+    padding:20px 26px;
+    font-family:'IBM Plex Sans', sans-serif;
+    font-size:15px;
+    line-height:30px;
+    color:var(--ink);
+  }
+  #text-pane:focus{outline:none;}
+  #text-pane::placeholder{color:var(--ink-faint); line-height:30px;}
+
+  #draw-pane{
+    width:100%;
+    height:100%;
+    position:relative;
+    background:#fff;
+    touch-action:none;
+  }
+  #draw-canvas{
+    width:100%;
+    height:100%;
+    display:block;
+    cursor:crosshair;
+  }
+  .draw-tools{
+    position:absolute;
+    left:50%;
+    bottom:18px;
+    transform:translateX(-50%);
+    display:flex;
+    align-items:center;
+    gap:10px;
+    background:#fff;
+    border:1px solid var(--line);
+    border-radius:999px;
+    padding:7px 14px;
+    box-shadow:0 2px 10px rgba(32,36,43,0.08);
+  }
+  .swatch{
+    width:20px;
+    height:20px;
+    border-radius:50%;
+    border:2px solid transparent;
+    cursor:pointer;
+    padding:0;
+  }
+  .swatch.selected{border-color:var(--ink-faint);}
+  .draw-tools input[type=range]{width:70px; accent-color:var(--accent);}
+  .tool-divider{width:1px; height:18px; background:var(--line);}
+  .tool-btn{
+    border:none;
+    background:transparent;
+    color:var(--ink-soft);
+    font-size:13px;
+    cursor:pointer;
+    padding:4px 6px;
+    border-radius:4px;
+  }
+  .tool-btn.active{background:var(--accent-soft); color:var(--accent-press);}
+  .tool-btn:hover{color:var(--ink);}
+
+  @media (max-width: 720px){
+    .sidebar{
+      position:absolute;
+      inset:0;
+      width:100%;
+      z-index:5;
+      transition:transform 0.2s ease;
+    }
+    .sidebar.hide{transform:translateX(-100%);}
+    .main{width:100%;}
+    .back-btn{
+      display:flex !important;
+    }
+  }
+  .back-btn{
+    display:none;
+    border:none;
+    background:transparent;
+    color:var(--accent);
+    font-size:20px;
+    cursor:pointer;
+    padding:0 4px 0 0;
+    align-items:center;
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <h1>✎ 메모</h1>
+      <button class="new-btn" id="new-note-btn">새 메모</button>
+    </div>
+    <div class="search-row">
+      <input type="text" id="search-input" placeholder="메모 검색">
+    </div>
+    <div class="note-list" id="note-list"></div>
+    <div class="sidebar-footer">
+      <button class="ghost-btn" id="export-btn">내보내기</button>
+      <button class="ghost-btn" id="import-btn">가져오기</button>
+      <input type="file" id="import-input" accept="application/json">
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="empty-state" id="empty-state">
+      <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="20" y="14" width="60" height="76" rx="3" stroke="#C9D2C8" stroke-width="2"/>
+        <line x1="30" y1="34" x2="70" y2="34" stroke="#C9D2C8" stroke-width="2"/>
+        <line x1="30" y1="46" x2="70" y2="46" stroke="#C9D2C8" stroke-width="2"/>
+        <line x1="30" y1="58" x2="55" y2="58" stroke="#C9D2C8" stroke-width="2"/>
+        <path d="M62 62 L74 74 M74 62 L62 74" stroke="#3457D5" stroke-width="2.4" stroke-linecap="round"/>
+      </svg>
+      <p>왼쪽에서 메모를 고르거나, 새 메모를 만들어보세요.</p>
+    </div>
+
+    <div class="editor" id="editor">
+      <div class="toolbar">
+        <button class="back-btn" id="back-btn">‹</button>
+        <input type="text" id="title-input" class="title-input" placeholder="제목 없음">
+        <div class="mode-switch">
+          <button id="mode-text-btn" class="active">텍스트</button>
+          <button id="mode-draw-btn">그리기</button>
+        </div>
+        <span class="save-flag" id="save-flag">저장됨</span>
+        <button class="icon-btn" id="delete-btn" title="메모 삭제">🗑</button>
+      </div>
+
+      <div class="pane">
+        <textarea id="text-pane" placeholder="여기에 적어보세요…"></textarea>
+
+        <div id="draw-pane" style="display:none;">
+          <canvas id="draw-canvas"></canvas>
+          <div class="draw-tools">
+            <button class="swatch selected" style="background:#20242B" data-color="#20242B"></button>
+            <button class="swatch" style="background:#3457D5" data-color="#3457D5"></button>
+            <button class="swatch" style="background:#B34A3A" data-color="#B34A3A"></button>
+            <button class="swatch" style="background:#2F7A4E" data-color="#2F7A4E"></button>
+            <div class="tool-divider"></div>
+            <input type="range" id="size-slider" min="1" max="16" value="3">
+            <div class="tool-divider"></div>
+            <button class="tool-btn active" id="pen-tool-btn">펜</button>
+            <button class="tool-btn" id="eraser-tool-btn">지우개</button>
+            <button class="tool-btn" id="clear-canvas-btn">전체 지우기</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var notes = [];
+  var activeId = null;
+
+  var els = {
+    list: document.getElementById("note-list"),
+    search: document.getElementById("search-input"),
+    newBtn: document.getElementById("new-note-btn"),
+    emptyState: document.getElementById("empty-state"),
+    editor: document.getElementById("editor"),
+    title: document.getElementById("title-input"),
+    textPane: document.getElementById("text-pane"),
+    drawPane: document.getElementById("draw-pane"),
+    canvas: document.getElementById("draw-canvas"),
+    modeTextBtn: document.getElementById("mode-text-btn"),
+    modeDrawBtn: document.getElementById("mode-draw-btn"),
+    deleteBtn: document.getElementById("delete-btn"),
+    saveFlag: document.getElementById("save-flag"),
+    sizeSlider: document.getElementById("size-slider"),
+    penBtn: document.getElementById("pen-tool-btn"),
+    eraserBtn: document.getElementById("eraser-tool-btn"),
+    clearBtn: document.getElementById("clear-canvas-btn"),
+    exportBtn: document.getElementById("export-btn"),
+    importBtn: document.getElementById("import-btn"),
+    importInput: document.getElementById("import-input"),
+    sidebar: document.getElementById("sidebar"),
+    backBtn: document.getElementById("back-btn")
+  };
+
+  /* ---------- storage (IndexedDB) ---------- */
+  var DB_NAME = "quickmemo-db";
+  var DB_VERSION = 1;
+  var STORE_NAME = "notes";
+  var dbPromise = null;
+
+  function openDB(){
+    if(dbPromise) return dbPromise;
+    dbPromise = new Promise(function(resolve, reject){
+      if(!window.indexedDB){
+        reject(new Error("이 브라우저는 IndexedDB를 지원하지 않아요."));
+        return;
+      }
+      var req = indexedDB.open(DB_NAME, DB_VERSION);
+      req.onupgradeneeded = function(e){
+        var idb = e.target.result;
+        if(!idb.objectStoreNames.contains(STORE_NAME)){
+          idb.createObjectStore(STORE_NAME, { keyPath: "id" });
+        }
+      };
+      req.onsuccess = function(e){ resolve(e.target.result); };
+      req.onerror = function(e){ reject(e.target.error); };
+    });
+    return dbPromise;
+  }
+
+  function dbGetAll(){
+    return openDB().then(function(idb){
+      return new Promise(function(resolve, reject){
+        var tx = idb.transaction(STORE_NAME, "readonly");
+        var req = tx.objectStore(STORE_NAME).getAll();
+        req.onsuccess = function(){ resolve(req.result || []); };
+        req.onerror = function(){ reject(req.error); };
+      });
+    });
+  }
+
+  function dbPut(note){
+    return openDB().then(function(idb){
+      return new Promise(function(resolve, reject){
+        var tx = idb.transaction(STORE_NAME, "readwrite");
+        tx.objectStore(STORE_NAME).put(note);
+        tx.oncomplete = function(){ resolve(); };
+        tx.onerror = function(){ reject(tx.error); };
+      });
+    });
+  }
+
+  function dbPutMany(list){
+    return openDB().then(function(idb){
+      return new Promise(function(resolve, reject){
+        var tx = idb.transaction(STORE_NAME, "readwrite");
+        var store = tx.objectStore(STORE_NAME);
+        list.forEach(function(n){ store.put(n); });
+        tx.oncomplete = function(){ resolve(); };
+        tx.onerror = function(){ reject(tx.error); };
+      });
+    });
+  }
+
+  function dbDelete(id){
+    return openDB().then(function(idb){
+      return new Promise(function(resolve, reject){
+        var tx = idb.transaction(STORE_NAME, "readwrite");
+        tx.objectStore(STORE_NAME).delete(id);
+        tx.oncomplete = function(){ resolve(); };
+        tx.onerror = function(){ reject(tx.error); };
+      });
+    });
+  }
+
+  function loadNotesFromDB(){
+    return dbGetAll().then(function(result){
+      notes = result || [];
+    }).catch(function(e){
+      console.error("불러오기 실패", e);
+      notes = [];
+      alert("메모를 불러오지 못했어요: " + e.message);
+    });
+  }
+
+  var saveTimers = {};
+  function scheduleSaveNote(note){
+    clearTimeout(saveTimers[note.id]);
+    saveTimers[note.id] = setTimeout(function(){
+      dbPut(note).then(flashSaved).catch(function(e){
+        console.error("저장 실패", e);
+      });
+    }, 350);
+  }
+
+  function flashSaved(){
+    els.saveFlag.classList.add("show");
+    clearTimeout(flashSaved._t);
+    flashSaved._t = setTimeout(function(){
+      els.saveFlag.classList.remove("show");
+    }, 1200);
+  }
+  function uid(){
+    return Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+  }
+
+  function getNote(id){
+    for(var i=0;i<notes.length;i++){ if(notes[i].id === id) return notes[i]; }
+    return null;
+  }
+
+  /* ---------- note CRUD ---------- */
+  function createNote(){
+    var note = {
+      id: uid(),
+      title: "",
+      text: "",
+      strokes: [],
+      mode: "text",
+      updatedAt: Date.now()
+    };
+    notes.unshift(note);
+    dbPut(note).then(flashSaved).catch(function(e){ console.error("저장 실패", e); });
+    renderList();
+    selectNote(note.id);
+    els.title.focus();
+  }
+
+  function deleteNote(id){
+    var idx = notes.findIndex(function(n){ return n.id === id; });
+    if(idx === -1) return;
+    notes.splice(idx,1);
+    dbDelete(id).catch(function(e){ console.error("삭제 실패", e); });
+    if(activeId === id){
+      activeId = null;
+      showEmptyState();
+    }
+    renderList();
+  }
+
+  function touchNote(note){
+    note.updatedAt = Date.now();
+    scheduleSaveNote(note);
+    renderList();
+  }
+
+  /* ---------- list rendering ---------- */
+  function firstLine(text){
+    if(!text) return "";
+    var line = text.split("\n")[0].trim();
+    return line;
+  }
+
+  function renderList(){
+    var query = els.search.value.trim().toLowerCase();
+    var sorted = notes.slice().sort(function(a,b){ return b.updatedAt - a.updatedAt; });
+    var filtered = sorted.filter(function(n){
+      if(!query) return true;
+      var hay = ((n.title||"") + " " + (n.text||"")).toLowerCase();
+      return hay.indexOf(query) !== -1;
+    });
+
+    els.list.innerHTML = "";
+
+    if(filtered.length === 0){
+      var msg = document.createElement("div");
+      msg.className = "empty-list";
+      msg.textContent = notes.length === 0 ? "아직 메모가 없어요. '새 메모'로 시작해보세요." : "검색 결과가 없어요.";
+      els.list.appendChild(msg);
+      return;
+    }
+
+    filtered.forEach(function(note){
+      var item = document.createElement("div");
+      item.className = "note-item" + (note.id === activeId ? " active" : "");
+      item.dataset.id = note.id;
+
+      var thumb = document.createElement("div");
+      thumb.className = "note-thumb";
+      if(note.strokes && note.strokes.length > 0){
+        var tc = document.createElement("canvas");
+        tc.width = 72; tc.height = 72;
+        drawStrokesOnCanvas(tc, note.strokes);
+        thumb.appendChild(tc);
+      } else {
+        thumb.textContent = "✎";
+      }
+
+      var meta = document.createElement("div");
+      meta.className = "note-meta";
+
+      var title = document.createElement("div");
+      title.className = "note-title";
+      title.textContent = note.title || firstLine(note.text) || "제목 없음";
+
+      var preview = document.createElement("div");
+      preview.className = "note-preview";
+      var previewText = note.text ? note.text.replace(/\n/g," ").trim() : "";
+      preview.textContent = previewText || (note.strokes && note.strokes.length ? "그림" : "빈 메모");
+
+      var time = document.createElement("div");
+      time.className = "note-time";
+      time.textContent = formatTime(note.updatedAt);
+
+      meta.appendChild(title);
+      meta.appendChild(preview);
+      meta.appendChild(time);
+
+      var del = document.createElement("button");
+      del.className = "note-del";
+      del.textContent = "✕";
+      del.title = "삭제";
+      del.addEventListener("click", function(e){
+        e.stopPropagation();
+        if(confirm("이 메모를 삭제할까요?")){
+          deleteNote(note.id);
+        }
+      });
+
+      item.appendChild(thumb);
+      item.appendChild(meta);
+      item.appendChild(del);
+
+      item.addEventListener("click", function(){
+        selectNote(note.id);
+      });
+
+      els.list.appendChild(item);
+    });
+  }
+
+  function formatTime(ts){
+    var d = new Date(ts);
+    var now = new Date();
+    var sameDay = d.toDateString() === now.toDateString();
+    var hh = d.getHours().toString().padStart(2,"0");
+    var mm = d.getMinutes().toString().padStart(2,"0");
+    if(sameDay) return hh + ":" + mm;
+    return (d.getMonth()+1) + "/" + d.getDate() + " " + hh + ":" + mm;
+  }
+
+  /* ---------- drawing (shared render for thumbnails + main canvas) ---------- */
+  function drawStrokesOnCanvas(canvas, strokes){
+    var ctx = canvas.getContext("2d");
+    var w = canvas.width, h = canvas.height;
+    ctx.clearRect(0,0,w,h);
+    strokes.forEach(function(stroke){
+      if(!stroke.points || stroke.points.length === 0) return;
+      ctx.lineJoin = "round";
+      ctx.lineCap = "round";
+      if(stroke.tool === "eraser"){
+        ctx.globalCompositeOperation = "destination-out";
+        ctx.strokeStyle = "rgba(0,0,0,1)";
+      } else {
+        ctx.globalCompositeOperation = "source-over";
+        ctx.strokeStyle = stroke.color;
+      }
+      ctx.lineWidth = Math.max(1, stroke.size * (w/300));
+      ctx.beginPath();
+      stroke.points.forEach(function(p, i){
+        var x = p.x * w, y = p.y * h;
+        if(i === 0) ctx.moveTo(x,y);
+        else ctx.lineTo(x,y);
+      });
+      ctx.stroke();
+    });
+    ctx.globalCompositeOperation = "source-over";
+  }
+
+  /* ---------- main canvas state ---------- */
+  var canvasState = {
+    drawing:false,
+    currentStroke:null,
+    color:"#20242B",
+    size:3,
+    tool:"pen"
+  };
+
+  function resizeMainCanvas(){
+    var canvas = els.canvas;
+    var rect = canvas.parentElement.getBoundingClientRect();
+    var dpr = window.devicePixelRatio || 1;
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    redrawMainCanvas();
+  }
+
+  function redrawMainCanvas(){
+    var note = getNote(activeId);
+    if(!note) return;
+    drawStrokesOnCanvas(els.canvas, note.strokes);
+  }
+
+  function canvasPointFromEvent(e){
+    var rect = els.canvas.getBoundingClientRect();
+    var x = (e.clientX - rect.left) / rect.width;
+    var y = (e.clientY - rect.top) / rect.height;
+    return { x: Math.min(1,Math.max(0,x)), y: Math.min(1,Math.max(0,y)) };
+  }
+
+  function onPointerDown(e){
+    var note = getNote(activeId);
+    if(!note) return;
+    els.canvas.setPointerCapture(e.pointerId);
+    canvasState.drawing = true;
+    canvasState.currentStroke = {
+      tool: canvasState.tool,
+      color: canvasState.color,
+      size: canvasState.size,
+      points: [canvasPointFromEvent(e)]
+    };
+    note.strokes.push(canvasState.currentStroke);
+    redrawMainCanvas();
+  }
+
+  function onPointerMove(e){
+    if(!canvasState.drawing) return;
+    canvasState.currentStroke.points.push(canvasPointFromEvent(e));
+    redrawMainCanvas();
+  }
+
+  function onPointerUp(){
+    if(!canvasState.drawing) return;
+    canvasState.drawing = false;
+    canvasState.currentStroke = null;
+    var note = getNote(activeId);
+    if(note){ touchNote(note); }
+  }
+
+  els.canvas.addEventListener("pointerdown", onPointerDown);
+  els.canvas.addEventListener("pointermove", onPointerMove);
+  window.addEventListener("pointerup", onPointerUp);
+  window.addEventListener("resize", function(){
+    if(activeId) resizeMainCanvas();
+  });
+
+  document.querySelectorAll(".swatch").forEach(function(btn){
+    btn.addEventListener("click", function(){
+      document.querySelectorAll(".swatch").forEach(function(s){ s.classList.remove("selected"); });
+      btn.classList.add("selected");
+      canvasState.color = btn.dataset.color;
+      canvasState.tool = "pen";
+      els.penBtn.classList.add("active");
+      els.eraserBtn.classList.remove("active");
+    });
+  });
+
+  els.sizeSlider.addEventListener("input", function(){
+    canvasState.size = parseInt(els.sizeSlider.value, 10);
+  });
+
+  els.penBtn.addEventListener("click", function(){
+    canvasState.tool = "pen";
+    els.penBtn.classList.add("active");
+    els.eraserBtn.classList.remove("active");
+  });
+  els.eraserBtn.addEventListener("click", function(){
+    canvasState.tool = "eraser";
+    els.eraserBtn.classList.add("active");
+    els.penBtn.classList.remove("active");
+  });
+  els.clearBtn.addEventListener("click", function(){
+    var note = getNote(activeId);
+    if(!note) return;
+    if(note.strokes.length === 0) return;
+    if(confirm("그림을 전체 지울까요?")){
+      note.strokes = [];
+      redrawMainCanvas();
+      touchNote(note);
+    }
+  });
+
+  /* ---------- selection & editor ---------- */
+  function selectNote(id){
+    activeId = id;
+    var note = getNote(id);
+    if(!note){ showEmptyState(); return; }
+
+    els.emptyState.style.display = "none";
+    els.editor.classList.add("visible");
+
+    els.title.value = note.title || "";
+    els.textPane.value = note.text || "";
+
+    setMode(note.mode || "text", true);
+    renderList();
+
+    if(window.innerWidth <= 720){
+      els.sidebar.classList.add("hide");
+    }
+
+    requestAnimationFrame(function(){
+      resizeMainCanvas();
+    });
+  }
+
+  function showEmptyState(){
+    els.editor.classList.remove("visible");
+    els.emptyState.style.display = "flex";
+    renderList();
+  }
+
+  function setMode(mode, silent){
+    var note = getNote(activeId);
+    if(note && !silent){
+      note.mode = mode;
+      scheduleSaveNote(note);
+    }
+    if(mode === "draw"){
+      els.textPane.style.display = "none";
+      els.drawPane.style.display = "block";
+      els.modeDrawBtn.classList.add("active");
+      els.modeTextBtn.classList.remove("active");
+      requestAnimationFrame(resizeMainCanvas);
+    } else {
+      els.textPane.style.display = "block";
+      els.drawPane.style.display = "none";
+      els.modeTextBtn.classList.add("active");
+      els.modeDrawBtn.classList.remove("active");
+    }
+  }
+
+  els.modeTextBtn.addEventListener("click", function(){ setMode("text"); });
+  els.modeDrawBtn.addEventListener("click", function(){ setMode("draw"); });
+
+  els.title.addEventListener("input", function(){
+    var note = getNote(activeId);
+    if(!note) return;
+    note.title = els.title.value;
+    touchNote(note);
+  });
+
+  els.textPane.addEventListener("input", function(){
+    var note = getNote(activeId);
+    if(!note) return;
+    note.text = els.textPane.value;
+    touchNote(note);
+  });
+
+  els.deleteBtn.addEventListener("click", function(){
+    if(!activeId) return;
+    if(confirm("이 메모를 삭제할까요?")){
+      deleteNote(activeId);
+    }
+  });
+
+  els.newBtn.addEventListener("click", createNote);
+  els.search.addEventListener("input", renderList);
+
+  els.backBtn.addEventListener("click", function(){
+    els.sidebar.classList.remove("hide");
+  });
+
+  /* ---------- export / import ---------- */
+  els.exportBtn.addEventListener("click", function(){
+    var blob = new Blob([JSON.stringify(notes, null, 2)], {type:"application/json"});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = "memo-backup-" + new Date().toISOString().slice(0,10) + ".json";
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  els.importBtn.addEventListener("click", function(){
+    els.importInput.click();
+  });
+
+  els.importInput.addEventListener("change", function(){
+    var file = els.importInput.files[0];
+    if(!file) return;
+    var reader = new FileReader();
+    reader.onload = function(){
+      try{
+        var imported = JSON.parse(reader.result);
+        if(!Array.isArray(imported)) throw new Error("형식 오류");
+        imported.forEach(function(n){
+          if(!n.id) n.id = uid();
+          n.strokes = n.strokes || [];
+          n.text = n.text || "";
+          n.title = n.title || "";
+          n.mode = n.mode || "text";
+          n.updatedAt = n.updatedAt || Date.now();
+        });
+        notes = notes.concat(imported);
+        dbPutMany(imported).then(function(){
+          renderList();
+          alert("메모 " + imported.length + "개를 가져왔어요.");
+        }).catch(function(e){
+          alert("가져오기 중 저장에 실패했어요: " + e.message);
+        });
+      }catch(e){
+        alert("파일을 읽을 수 없어요. 올바른 백업 파일인지 확인해주세요.");
+      }
+      els.importInput.value = "";
+    };
+    reader.readAsText(file);
+  });
+
+  /* ---------- init ---------- */
+  loadNotesFromDB().then(function(){
+    renderList();
+    showEmptyState();
+  });
+})();
+</script>
+</body>
+</html>
