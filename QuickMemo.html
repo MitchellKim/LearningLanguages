@@ -325,12 +325,36 @@
     position:relative;
     background:#fff;
     touch-action:none;
+    outline:2px solid transparent;
+    outline-offset:-2px;
+    transition:outline-color 0.1s ease;
+  }
+  #draw-pane.space-armed{
+    outline-color:var(--accent);
   }
   #draw-canvas{
     width:100%;
     height:100%;
     display:block;
     cursor:crosshair;
+  }
+  .draw-hint{
+    position:absolute;
+    top:14px;
+    left:16px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    color:var(--ink-faint);
+    background:rgba(255,255,255,0.9);
+    border:1px solid var(--line-soft);
+    padding:4px 9px;
+    border-radius:5px;
+    pointer-events:none;
+    transition:color 0.1s ease, border-color 0.1s ease;
+  }
+  #draw-pane.space-armed .draw-hint{
+    color:var(--accent-press);
+    border-color:var(--accent);
   }
   .draw-tools{
     position:absolute;
@@ -443,6 +467,7 @@
 
         <div id="draw-pane" style="display:none;">
           <canvas id="draw-canvas"></canvas>
+          <div class="draw-hint">Space 누른 채 이동 = 그리기 (클릭 불필요)</div>
           <div class="draw-tools">
             <button class="swatch selected" style="background:#20242B" data-color="#20242B"></button>
             <button class="swatch" style="background:#3457D5" data-color="#3457D5"></button>
@@ -766,6 +791,7 @@
     size:3,
     tool:"pen"
   };
+  var spaceHeld = false;
 
   function resizeMainCanvas(){
     var canvas = els.canvas;
@@ -789,10 +815,17 @@
     return { x: Math.min(1,Math.max(0,x)), y: Math.min(1,Math.max(0,y)) };
   }
 
-  function onPointerDown(e){
-    var note = getNote(activeId);
-    if(!note) return;
-    els.canvas.setPointerCapture(e.pointerId);
+  // 마우스/트랙패드는 버튼을 누르고 있거나 Space가 눌린 채 움직일 때 그림.
+  // 펜/터치는 기존처럼 접촉(버튼=1) 중일 때만 그림.
+  function shouldDrawFor(e){
+    var buttonDown = (e.buttons & 1) === 1;
+    if(e.pointerType === "mouse"){
+      return buttonDown || spaceHeld;
+    }
+    return buttonDown;
+  }
+
+  function startStroke(e, note){
     canvasState.drawing = true;
     canvasState.currentStroke = {
       tool: canvasState.tool,
@@ -804,19 +837,83 @@
     redrawMainCanvas();
   }
 
-  function onPointerMove(e){
-    if(!canvasState.drawing) return;
-    canvasState.currentStroke.points.push(canvasPointFromEvent(e));
-    redrawMainCanvas();
-  }
-
-  function onPointerUp(){
+  function endStroke(note){
     if(!canvasState.drawing) return;
     canvasState.drawing = false;
     canvasState.currentStroke = null;
-    var note = getNote(activeId);
     if(note){ touchNote(note); }
   }
+
+  function onPointerDown(e){
+    var note = getNote(activeId);
+    if(!note) return;
+    if(e.pointerType !== "mouse"){
+      els.canvas.setPointerCapture(e.pointerId);
+    }
+    if(shouldDrawFor(e) && !canvasState.drawing){
+      startStroke(e, note);
+    }
+  }
+
+  function onPointerMove(e){
+    var note = getNote(activeId);
+    if(!note) return;
+    var active = shouldDrawFor(e);
+    if(active && !canvasState.drawing){
+      startStroke(e, note);
+    } else if(!active && canvasState.drawing){
+      endStroke(note);
+    }
+    if(canvasState.drawing){
+      canvasState.currentStroke.points.push(canvasPointFromEvent(e));
+      redrawMainCanvas();
+    }
+  }
+
+  function onPointerUp(e){
+    if(!canvasState.drawing) return;
+    if(e && shouldDrawFor(e)) return; // 예: Space를 계속 누르고 있으면 유지
+    endStroke(getNote(activeId));
+  }
+
+  function isTypingTarget(el){
+    if(!el) return false;
+    var tag = el.tagName;
+    return tag === "INPUT" || tag === "TEXTAREA" || el.isContentEditable;
+  }
+
+  function isDrawPaneVisible(){
+    return !!activeId && els.drawPane.style.display !== "none";
+  }
+
+  window.addEventListener("keydown", function(e){
+    if(e.code !== "Space") return;
+    if(!isDrawPaneVisible() || isTypingTarget(e.target)) return;
+    e.preventDefault();
+    if(!spaceHeld){
+      spaceHeld = true;
+      els.drawPane.classList.add("space-armed");
+    }
+  });
+
+  window.addEventListener("keyup", function(e){
+    if(e.code !== "Space" || !spaceHeld) return;
+    spaceHeld = false;
+    els.drawPane.classList.remove("space-armed");
+    if(canvasState.drawing){
+      endStroke(getNote(activeId));
+    }
+  });
+
+  window.addEventListener("blur", function(){
+    if(spaceHeld){
+      spaceHeld = false;
+      els.drawPane.classList.remove("space-armed");
+      if(canvasState.drawing){
+        endStroke(getNote(activeId));
+      }
+    }
+  });
 
   els.canvas.addEventListener("pointerdown", onPointerDown);
   els.canvas.addEventListener("pointermove", onPointerMove);
